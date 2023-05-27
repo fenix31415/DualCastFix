@@ -45,11 +45,35 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a
 	return true;
 }
 
+bool GetIsDualCasting(RE::ActorMagicCaster*, RE::Projectile* proj) { return proj->flags.all(RE::Projectile::Flags::kIsDual); }
+
+// change ench power (=> max mag) depending on soulgem
+void Hook()
+{
+	// clear SetDualCasting
+	FenixUtils::writebytes<33634, 0x66>("\x0F\x1F\x80\x00\x00\x00\x00"sv);
+
+	// get proj dual casting instead
+	struct Code : Xbyak::CodeGenerator
+	{
+		Code(uintptr_t func)
+		{
+			// rbx = proj
+
+			mov(rdx, rbx);
+
+			mov(rax, func);
+			jmp(rax);
+		}
+	} xbyakCode{ uintptr_t(GetIsDualCasting) };
+	add_trampoline<6, 33634, 0x3b9, true>(&xbyakCode);  // SkyrimSE.exe+54e049
+}
+
 static void SKSEMessageHandler(SKSE::MessagingInterface::Message* message)
 {
 	switch (message->type) {
 	case SKSE::MessagingInterface::kDataLoaded:
-		//
+		Hook();
 
 		break;
 	}
